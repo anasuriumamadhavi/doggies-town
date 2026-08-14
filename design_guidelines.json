@@ -1,0 +1,140 @@
+{
+  "theme": "Light mode primary for the public marketing site to convey a warm, editorial, and elegant tone. The Admin CMS should support a light/dark toggle or default to a clean light UI.",
+  "typography": {
+    "headings": {
+      "font": "Playfair Display",
+      "style": "serif, high contrast, editorial, elegant",
+      "usage_rules": "Use for H1-H3. H1 max text-5xl/6xl with tracking-tight. H2 at text-4xl. Use font-normal or font-medium. Do not use generic sans-serif for headings on the public site."
+    },
+    "body": {
+      "font": "Manrope",
+      "style": "clean sans-serif, geometric, premium",
+      "usage_rules": "Use for paragraphs, descriptions, input fields. Apply text-base with leading-relaxed for optimal readability."
+    },
+    "accents": {
+      "font": "Manrope",
+      "style": "uppercase, wide tracking",
+      "usage_rules": "Use tracking-[0.2em] for overlines, labels, small buttons, and metadata (text-xs or text-sm)."
+    }
+  },
+  "colors": {
+    "primary": {
+      "hex": "#C87A5B",
+      "name": "Terracotta",
+      "usage": "Primary CTA buttons, active states, key highlights. Evokes warmth, care, and approachability."
+    },
+    "secondary": {
+      "hex": "#6D8274",
+      "name": "Muted Sage",
+      "usage": "Secondary buttons, section backgrounds, subtle trust indicators. Represents calm, health, and nature."
+    },
+    "backgrounds": {
+      "base": "#FAF7F2",
+      "surface": "#FFFFFF",
+      "dark_section": "#1A1C1A",
+      "sand": "#E5D9C5"
+    },
+    "text": {
+      "primary": "#1A1C1A",
+      "secondary": "#4A4D4A",
+      "on_dark": "#FAF7F2",
+      "on_primary": "#FFFFFF"
+    }
+  },
+  "visual_enhancers": {
+    "shadows": "Use soft, diffuse ambient shadows for cards and floating elements: shadow-[0_8px_32px_rgba(0,0,0,0.06)]. Avoid harsh, hard shadows.",
+    "borders": "Delicate 1px borders (border-black/5 or border-sage/20) for subtle separation without creating a boxy feel.",
+    "corners": "Nested radii: rounded-2xl or rounded-3xl for large cards and images. Use pill-shaped buttons (rounded-full).",
+    "glassmorphism": "For sticky nav/mobile bar: use crystal glassmorphism (bg-white/80 backdrop-blur-xl border-b border-black/5).",
+    "textures": "Subtle noise overlays on dark sections to create a premium, tactile, editorial feel."
+  },
+  "components": {
+    "marketing": {
+      "strategy": "Custom HTML/Tailwind. Avoid overusing Shadcn for layout. Use pure divs and sections for overlapping, asymmetry, and editorial layouts.",
+      "buttons": "Pill-shaped (rounded-full), uppercase tracking-wider. Primary: bg-terracotta text-white hover:-translate-y-1 hover:shadow-lg transition-all. Secondary: border border-black/10 hover:border-black/30.",
+      "cards": "Go for a cardless or soft-card look. Use large editorial images with text floating next to them. If using cards, ensure subtle borders with generous padding (p-8 to p-12).",
+      "forms": "Enquiry forms should use Shadcn logic but be heavily styled to match the premium marketing look (no default Vercel aesthetic)."
+    },
+    "admin": {
+      "strategy": "Use Shadcn/UI components (tables, forms, dialogs, cards). Strict grid hierarchy, dense layout, functional beauty.",
+      "colors": "High contrast primary (Terracotta) + neutral greys. Clean white surfaces.",
+      "layout": "Sidebar navigation (left), main content area, standard dashboard pattern."
+    }
+  },
+  "grids_and_layouts": {
+    "bento_grid": "Mode A 'Tetris' Grid for Gallery and Packages. Use col-span-full md:col-span-8 for hero elements, col-span-4 for supporting elements. Wide gaps (gap-8).",
+    "spacing": "Generous spacing philosophy. Sections should have py-24 or py-32. Internal padding for borders must be p-8 or p-12 to avoid cramping.",
+    "hero": "Eyebrow text (uppercase), large Playfair Display H1, concise description, primary + secondary CTAs. Max 80vh height on mobile. Use transparent-to-black/30 gradients for image text overlays."
+  },
+  "motion": {
+    "interactions": "Hover states on all interactive elements (subtle lift -translate-y-1, shadow expansion).",
+    "scroll": "Fade-in up for staggered lists/gallery items on scroll.",
+    "micro": "Smooth accordion expansions for FAQs. Mobile mega menu should animate gracefully."
+  },
+  "accessibility": {
+    "contrast": "Ensure all text meets at least 4.5:1 ratio. Terracotta on white and white on Terracotta are accessible.",
+    "focus": "Use focus-visible:ring-2 focus-visible:ring-terracotta focus-visible:outline-none.",
+    "motion": "Respect prefers-reduced-motion media query."
+  },
+  "media": {
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1612163863388-20210dd24336?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHw0fHxsdXh1cnklMjBkb2clMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODY2OTI4NDl8MA&ixlib=rb-4.1.0&q=85",
+        "category": "hero",
+        "description": "Elegant pointer dog portrait, high contrast"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1652342516776-fcd4c54639c5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwzfHxsdXh1cnklMjBkb2clMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODY2OTI4NDl8MA&ixlib=rb-4.1.0&q=85",
+        "category": "services",
+        "description": "Fluffy dog portrait, warm and friendly"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1455970022149-a8f26b6902dd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHw0fHxlbGVnYW50JTIwY2F0JTIwcG9ydHJhaXR8ZW58MHx8fHwxNzg2NjkyODQ5fDA&ixlib=rb-4.1.0&q=85",
+        "category": "gallery",
+        "description": "Elegant long-fur brown cat"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1625321171045-1fea4ac688e9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHxwcmVtaXVtJTIwcGV0JTIwY2FyZSUyMGZhY2lsaXR5fGVufDB8fHx8MTc4NjY5Mjg0OXww&ixlib=rb-4.1.0&q=85",
+        "category": "facilities",
+        "description": "Premium grooming facility with white robe"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1715626000681-a0074b4d9783?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwyfHxwcmVtaXVtJTIwcGV0JTIwY2FyZSUyMGZhY2lsaXR5fGVufDB8fHx8MTc4NjY5Mjg0OXww&ixlib=rb-4.1.0&q=85",
+        "category": "about",
+        "description": "Person sitting at table with white cat"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1630438994394-3deff7a591bf?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHw0fHxwcmVtaXVtJTIwcGV0JTIwY2FyZSUyMGZhY2lsaXR5fGVufDB8fHx8MTc4NjY5Mjg0OXww&ixlib=rb-4.1.0&q=85",
+        "category": "services_detail",
+        "description": "French bulldog on vet table, clean modern clinic"
+      }
+    ],
+    "treatment": "Use object-cover for images. Max 80vh on mobile to prevent scrolling fatigue. Do not use fully rounded corners unless for avatars; default to rounded-2xl."
+  },
+  "specific_features": {
+    "navigation": "Desktop: Mega Menu for Services. Mobile: Accordion menu. Sticky header MUST have a background (e.g., bg-white/90 backdrop-blur-md) - never fully transparent.",
+    "contact": "Floating WhatsApp + Call buttons fixed at bottom right (z-50). Optional mobile sticky CTA bar at bottom for 'Book Now'.",
+    "book_now": "Redirects to external ERP URL. Open in new tab (target='_blank').",
+    "enquiry_form": "Separate from booking, standard contact form styled to match the theme (not default Shadcn)."
+  },
+  "instructions_to_main_agent": [
+    "Prioritize HTML/Tailwind for the public site structure. Do not wrap everything in generic Shadcn Cards.",
+    "Use Playfair Display for headings and Manrope for body text.",
+    "Ensure all buttons and interactive elements have hover animations (e.g., -translate-y-1 and shadow changes).",
+    "Build the Admin CMS using Shadcn components (sidebar, dense grids, tables) at a separate route (e.g., /admin).",
+    "Make sure there's a floating WhatsApp icon on the public site.",
+    "Include 'data-testid' attributes on all interactive elements (buttons, inputs, links, menus, etc) for automated testing.",
+    "Implement the Bento grid strategy for the gallery and services.",
+    "Do NOT use complete transparent backgrounds for the sticky header; it must have a blur and slight color to ensure text is readable."
+  ],
+  "universal_guidelines": [
+    "Avoid generic, 'on-distribution' outputs. Create depth through layered design elements with z-index hierarchy.",
+    "Do not apply `transition: all` universally. Use specific transitions.",
+    "Do not center-align the app container (`.App { text-align: center; }`). Keep text left-aligned for natural reading.",
+    "Use modern button styles (pill-shaped or sharp) with interaction animations.",
+    "Never use AI assistant Emoji characters (🤖🧠💭💡🔮🎯) for icons. Use lucide-react or phosphor-icons.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Add micro-animations for hover states and list entrances.",
+    "Use sonner for toast notifications."
+  ]
+}
