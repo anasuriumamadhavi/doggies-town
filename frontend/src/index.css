@@ -11,9 +11,9 @@
     --card-foreground: 100 5% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 100 5% 11%;
-    --primary: 16 49% 57%;
+    --primary: 15 88% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 130 10% 47%;
+    --secondary: 240 54% 36%;
     --secondary-foreground: 0 0% 100%;
     --muted: 40 20% 92%;
     --muted-foreground: 100 4% 35%;
@@ -23,7 +23,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 100 6% 88%;
     --input: 100 6% 88%;
-    --ring: 16 49% 57%;
+    --ring: 15 88% 55%;
     --radius: 0.75rem;
 }
 
@@ -57,7 +57,7 @@ body {
 }
 
 ::selection {
-    background: hsl(16 49% 57% / 0.25);
+    background: hsl(15 88% 55% / 0.25);
     color: hsl(100 5% 11%);
 }
 

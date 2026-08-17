@@ -52,13 +52,15 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:h-20 md:px-8">
         <Link to="/" data-testid="logo-link" className="flex items-center gap-2">
           {logo ? (
-            <img src={mediaUrl(logo)} alt={brand} className="h-9 w-auto" />
+            <img src={mediaUrl(logo)} alt={brand} className="h-10 w-auto md:h-12" />
           ) : (
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-terracotta text-white">
-              <PawPrint className="h-5 w-5" />
-            </span>
+            <>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-terracotta text-white">
+                <PawPrint className="h-5 w-5" />
+              </span>
+              <span className="font-display text-xl font-semibold tracking-tight text-ink md:text-2xl">{brand}</span>
+            </>
           )}
-          <span className="font-display text-xl font-semibold tracking-tight text-ink md:text-2xl">{brand}</span>
         </Link>
 
         {/* Desktop nav */}

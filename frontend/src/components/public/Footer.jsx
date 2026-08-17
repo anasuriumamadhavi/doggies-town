@@ -17,13 +17,15 @@ export function Footer() {
           <div>
             <Link to="/" className="flex items-center gap-2">
               {settings.logo ? (
-                <img src={mediaUrl(settings.logo)} alt={brand} className="h-9 w-auto" />
+                <img src={mediaUrl(settings.logo)} alt={brand} className="h-14 w-auto rounded-2xl bg-white p-2" />
               ) : (
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-terracotta text-white">
-                  <PawPrint className="h-5 w-5" />
-                </span>
+                <>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-terracotta text-white">
+                    <PawPrint className="h-5 w-5" />
+                  </span>
+                  <span className="font-display text-2xl font-semibold">{brand}</span>
+                </>
               )}
-              <span className="font-display text-2xl font-semibold">{brand}</span>
             </Link>
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-cream/60">
               {settings.tagline || "Premium care and personalised attention designed around the pets you love."}
