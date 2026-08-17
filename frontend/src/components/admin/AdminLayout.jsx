@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useSite } from "../../context/SiteContext";
+import { mediaUrl } from "../../lib/api";
 import {
   LayoutDashboard, FileText, Info, Sparkles, Package, Image, Star, HelpCircle,
   Inbox, Navigation as NavIcon, FolderOpen, Phone, MessageCircle, MousePointerClick,
@@ -37,16 +39,25 @@ const GROUPS = [
 
 export function AdminLayout() {
   const { user, logout } = useAuth();
+  const { settings } = useSite();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   const doLogout = async () => { await logout(); navigate("/admin/login"); };
+  const brand = settings?.business_name || "Admin";
+  const logo = settings?.logo;
 
   const Sidebar = (
     <div className="flex h-full flex-col">
       <Link to="/admin/dashboard" className="flex items-center gap-2 px-6 py-5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-terracotta text-white"><PawPrint className="h-5 w-5" /></span>
-        <span className="font-display text-lg font-semibold text-ink">Pawsome Admin</span>
+        {logo ? (
+          <img src={mediaUrl(logo)} alt={brand} className="h-10 w-auto" />
+        ) : (
+          <>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-terracotta text-white"><PawPrint className="h-5 w-5" /></span>
+            <span className="font-display text-lg font-semibold text-ink">{brand} Admin</span>
+          </>
+        )}
       </Link>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
         {GROUPS.map((g, gi) => (
@@ -87,7 +98,7 @@ export function AdminLayout() {
       <div className="flex flex-1 flex-col lg:pl-64">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-ink/5 bg-white/90 px-4 backdrop-blur lg:hidden">
           <button onClick={() => setOpen(true)} data-testid="admin-menu-toggle"><Menu className="h-6 w-6 text-ink" /></button>
-          <span className="font-display text-lg font-medium text-ink">Pawsome Admin</span>
+          <span className="font-display text-lg font-medium text-ink">{brand} Admin</span>
           <span className="w-6" />
         </header>
         <main className="flex-1 p-4 md:p-8">

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { formatApiErrorDetail } from "../../lib/api";
+import { useSite } from "../../context/SiteContext";
+import { formatApiErrorDetail, mediaUrl } from "../../lib/api";
 import { PawPrint, Loader2 } from "lucide-react";
 
 export default function AdminLogin() {
   const { login, user, ready } = useAuth();
+  const { settings } = useSite();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,9 +33,13 @@ export default function AdminLogin() {
     <div className="flex min-h-screen items-center justify-center bg-ink p-4">
       <div className="w-full max-w-md rounded-3xl bg-cream p-8 shadow-2xl md:p-10">
         <div className="mb-8 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-terracotta text-white"><PawPrint className="h-6 w-6" /></span>
+          {settings?.logo ? (
+            <img src={mediaUrl(settings.logo)} alt={settings.business_name} className="h-12 w-auto" />
+          ) : (
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-terracotta text-white"><PawPrint className="h-6 w-6" /></span>
+          )}
           <div>
-            <h1 className="font-display text-2xl font-medium text-ink">Pawsome Admin</h1>
+            <h1 className="font-display text-2xl font-medium text-ink">{settings?.business_name || "Admin"}</h1>
             <p className="text-sm text-ink/50">Website management panel</p>
           </div>
         </div>
