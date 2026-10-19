@@ -29,9 +29,9 @@ from seed_data import seed_content
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("server")
 
-mongo_url = os.environ["mongodb+srv://paws-staging-1:da19d1qmp9dc73c5vqeg@customer-apps.dw2nl2.mongodb.net/?retryWrites=true&w=majority&appName=paws-staging-1&maxPoolSize=5"]
+mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ["paws-staging-1"]]
+db = client[os.environ["DB_NAME"]]
 
 # NOTE: no local uploads folder. Vercel's filesystem is read-only, and anything written
 # to /tmp disappears between requests. All media lives in S3-compatible storage (R2/S3).
