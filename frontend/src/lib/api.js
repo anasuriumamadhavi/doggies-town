@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-export const API = `${BACKEND_URL}/api`;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || ""; // optional override for local testing
+export const API = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, "")}/api` : "/api";
 
 export const api = axios.create({
   baseURL: API,
@@ -12,7 +12,10 @@ export const api = axios.create({
 export function mediaUrl(url) {
   if (!url) return "";
   if (url.startsWith("http") || url.startsWith("data:")) return url;
-  if (url.startsWith("/api")) return `${BACKEND_URL}${url}`;
+  if (url.startsWith("/api")) {
+    // If BACKEND_URL provided, prefix it; otherwise keep the relative path so the browser requests /api/...
+    return BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, "")}${url}` : url;
+  }
   return url;
 }
 
@@ -20,7 +23,10 @@ export function formatApiErrorDetail(detail) {
   if (detail == null) return "Something went wrong. Please try again.";
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail))
-    return detail.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");
+    return detail
+      .map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e)))
+      .filter(Boolean)
+      .join(" ");
   if (detail && typeof detail.msg === "string") return detail.msg;
   return String(detail);
 }
