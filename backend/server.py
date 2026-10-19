@@ -1,6 +1,8 @@
 import os
 import uuid
+import asyncio
 import logging
+import mimetypes
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -11,10 +13,14 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Response, UploadFile, File, Header
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
+
+import boto3
+from botocore.config import Config as BotoConfig
+from botocore.exceptions import ClientError
 
 import auth as auth_mod
 import whatsapp as wa
@@ -27,11 +33,118 @@ mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
-UPLOAD_DIR = ROOT_DIR / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+# NOTE: no local uploads folder. Vercel's filesystem is read-only, and anything written
+# to /tmp disappears between requests. All media lives in S3-compatible storage (R2/S3).
 
 app = FastAPI(title="Pawsome Pet Care API")
 api = APIRouter(prefix="/api")
+
+
+# ----------------------------- object storage (Cloudflare R2 / AWS S3) -----------------------------
+S3_BUCKET = os.environ.get("S3_BUCKET", "")
+S3_PREFIX = "uploads/"  # objects are stored as uploads/<filename>
+
+# Optional: public base URL of the bucket (e.g. https://pub-xxxx.r2.dev or https://media.yourdomain.com).
+# If set, /api/uploads/<file> redirects there (fast, cacheable). If not, it redirects to a signed URL.
+S3_PUBLIC_BASE_URL = os.environ.get("S3_PUBLIC_BASE_URL", "").rstrip("/")
+
+ALLOWED_EXTENSIONS = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+    ".mp4": "video/mp4",
+    ".mov": "video/quicktime",
+}
+VIDEO_EXTENSIONS = {".mp4", ".mov"}
+MAX_IMAGE_BYTES = 15 * 1024 * 1024    # 15 MB
+MAX_VIDEO_BYTES = 200 * 1024 * 1024   # 200 MB (via direct upload)
+SERVER_UPLOAD_LIMIT = 4 * 1024 * 1024  # Vercel request bodies cap at ~4.5 MB
+
+_s3_client = None
+
+
+def get_s3():
+    """Create the S3/R2 client lazily so a missing config fails one request, not the whole app."""
+    global _s3_client
+    if _s3_client is None:
+        if not S3_BUCKET:
+            raise HTTPException(status_code=500, detail="Media storage is not configured (S3_BUCKET missing)")
+        _s3_client = boto3.client(
+            "s3",
+            endpoint_url=os.environ.get("S3_ENDPOINT_URL") or None,  # set for R2, leave empty for AWS
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY"),
+            region_name=os.environ.get("S3_REGION", "auto"),
+            config=BotoConfig(signature_version="s3v4"),
+        )
+    return _s3_client
+
+
+def get_extension(filename: str) -> str:
+    ext = Path(filename or "").suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    return ext
+
+
+def max_bytes_for(ext: str) -> int:
+    return MAX_VIDEO_BYTES if ext in VIDEO_EXTENSIONS else MAX_IMAGE_BYTES
+
+
+def object_key(fname: str) -> str:
+    return f"{S3_PREFIX}{fname}"
+
+
+def safe_filename(fname: str) -> str:
+    """Only allow plain filenames like 3f2a...e1.jpg (no paths)."""
+    if not fname or "/" in fname or "\\" in fname or ".." in fname:
+        raise HTTPException(status_code=404, detail="File not found")
+    return fname
+
+
+async def s3_put(key: str, data: bytes, content_type: str):
+    await asyncio.to_thread(
+        get_s3().put_object,
+        Bucket=S3_BUCKET, Key=key, Body=data, ContentType=content_type,
+        CacheControl="public, max-age=31536000, immutable",
+    )
+
+
+async def s3_head(key: str) -> Optional[dict]:
+    try:
+        return await asyncio.to_thread(get_s3().head_object, Bucket=S3_BUCKET, Key=key)
+    except ClientError:
+        return None
+
+
+async def s3_delete(key: str):
+    try:
+        await asyncio.to_thread(get_s3().delete_object, Bucket=S3_BUCKET, Key=key)
+    except ClientError as e:
+        logger.warning("Could not delete %s: %s", key, e)
+
+
+def presign_put(key: str, content_type: str, expires: int = 900) -> str:
+    return get_s3().generate_presigned_url(
+        "put_object",
+        Params={"Bucket": S3_BUCKET, "Key": key, "ContentType": content_type,
+                "CacheControl": "public, max-age=31536000, immutable"},
+        ExpiresIn=expires,
+    )
+
+
+def presign_get(key: str, expires: int = 3600) -> str:
+    return get_s3().generate_presigned_url(
+        "get_object", Params={"Bucket": S3_BUCKET, "Key": key}, ExpiresIn=expires,
+    )
+
+
+def media_url(fname: str) -> str:
+    # Same URL format as before, so existing content in MongoDB keeps working.
+    return f"/api/uploads/{fname}"
 
 
 # ----------------------------- helpers -----------------------------
@@ -75,6 +188,17 @@ class EnquiryBody(BaseModel):
     service: Optional[str] = ""
     package: Optional[str] = ""
     message: Optional[str] = ""
+
+
+class MediaUploadUrlBody(BaseModel):
+    filename: str
+    size: int
+    content_type: Optional[str] = None
+
+
+class MediaUploadCompleteBody(BaseModel):
+    filename: str        # the generated filename returned by upload-url
+    original_name: str
 
 
 # ----------------------------- auth -----------------------------
@@ -227,26 +351,69 @@ register_singleton("homepage", "homepage", "homepage")
 register_singleton("about", "about", "about")
 
 
-# ----------------------------- media upload -----------------------------
-@api.post("/admin/media/upload")
-async def upload_media(file: UploadFile = File(...), admin=Depends(admin_dep)):
-    ext = Path(file.filename).suffix.lower()
-    allowed = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".svg"}
-    if ext not in allowed:
-        raise HTTPException(status_code=400, detail="Unsupported file type")
-    fname = f"{uuid.uuid4().hex}{ext}"
-    dest = UPLOAD_DIR / fname
-    content = await file.read()
-    dest.write_bytes(content)
+# ----------------------------- media -----------------------------
+async def _save_media_record(fname: str, original_name: str, size: int, ext: str, admin: dict) -> dict:
     doc = {
-        "id": str(uuid.uuid4()), "filename": fname, "original_name": file.filename,
-        "url": f"/api/uploads/{fname}", "size": len(content),
-        "media_type": "video" if ext in {".mp4", ".mov"} else "image",
+        "id": str(uuid.uuid4()), "filename": fname, "original_name": original_name,
+        "url": media_url(fname), "size": size,
+        "media_type": "video" if ext in VIDEO_EXTENSIONS else "image",
         "alt_text": "", "created_at": now_iso(),
     }
     await db.media.insert_one(dict(doc))
-    await log_activity(admin["email"], "upload", "media", f"Uploaded {file.filename}")
+    await log_activity(admin["email"], "upload", "media", f"Uploaded {original_name}")
     return clean(doc)
+
+
+@api.post("/admin/media/upload")
+async def upload_media(file: UploadFile = File(...), admin=Depends(admin_dep)):
+    """
+    Single-request upload (same as before). On Vercel this only works for files under ~4 MB.
+    Use /admin/media/upload-url + /admin/media/upload-complete for larger files and videos.
+    """
+    ext = get_extension(file.filename)
+    content = await file.read()
+    if len(content) > SERVER_UPLOAD_LIMIT:
+        raise HTTPException(
+            status_code=413,
+            detail="File too large for direct upload (max 4 MB). Use /api/admin/media/upload-url instead.",
+        )
+    fname = f"{uuid.uuid4().hex}{ext}"
+    await s3_put(object_key(fname), content, ALLOWED_EXTENSIONS[ext])
+    return await _save_media_record(fname, file.filename, len(content), ext, admin)
+
+
+@api.post("/admin/media/upload-url")
+async def media_upload_url(body: MediaUploadUrlBody, admin=Depends(admin_dep)):
+    """Step 1 of direct upload: returns a presigned PUT URL so the browser uploads straight to storage."""
+    ext = get_extension(body.filename)
+    limit = max_bytes_for(ext)
+    if body.size <= 0 or body.size > limit:
+        raise HTTPException(status_code=400, detail=f"File too large. Max {limit // (1024 * 1024)} MB for this type.")
+    fname = f"{uuid.uuid4().hex}{ext}"
+    content_type = ALLOWED_EXTENSIONS[ext]
+    return {
+        "upload_url": presign_put(object_key(fname), content_type),
+        "filename": fname,
+        "content_type": content_type,  # browser must send exactly this Content-Type header
+        "headers": {"Content-Type": content_type,
+                    "Cache-Control": "public, max-age=31536000, immutable"},
+        "expires_in": 900,
+    }
+
+
+@api.post("/admin/media/upload-complete")
+async def media_upload_complete(body: MediaUploadCompleteBody, admin=Depends(admin_dep)):
+    """Step 2 of direct upload: verifies the object exists and creates the media record."""
+    fname = safe_filename(body.filename)
+    ext = get_extension(fname)
+    meta = await s3_head(object_key(fname))
+    if not meta:
+        raise HTTPException(status_code=404, detail="Upload not found. Please try again.")
+    size = meta.get("ContentLength", 0)
+    if size > max_bytes_for(ext):
+        await s3_delete(object_key(fname))
+        raise HTTPException(status_code=400, detail="File exceeds the allowed size and was removed.")
+    return await _save_media_record(fname, body.original_name, size, ext, admin)
 
 
 @api.get("/admin/media")
@@ -265,12 +432,23 @@ async def update_media(item_id: str, payload: dict, admin=Depends(admin_dep)):
 @api.delete("/admin/media/{item_id}")
 async def delete_media(item_id: str, admin=Depends(admin_dep)):
     doc = await db.media.find_one({"id": item_id}, {"_id": 0})
-    if doc:
-        fp = UPLOAD_DIR / doc["filename"]
-        if fp.exists():
-            fp.unlink()
+    if doc and doc.get("filename"):
+        await s3_delete(object_key(doc["filename"]))
     await db.media.delete_one({"id": item_id})
     return {"success": True}
+
+
+@api.get("/uploads/{fname}")
+async def serve_upload(fname: str):
+    """
+    Replaces the old StaticFiles mount. Keeps every existing /api/uploads/<file> URL
+    (stored in services, gallery, homepage, etc.) working by redirecting to storage.
+    """
+    fname = safe_filename(fname)
+    key = object_key(fname)
+    if S3_PUBLIC_BASE_URL:
+        return RedirectResponse(url=f"{S3_PUBLIC_BASE_URL}/{key}", status_code=301)
+    return RedirectResponse(url=presign_get(key), status_code=307)
 
 
 # ----------------------------- enquiries -----------------------------
@@ -427,13 +605,36 @@ async def root():
     return {"message": "Pawsome Pet Care API"}
 
 
+@api.get("/health")
+async def health():
+    """Quick deploy check: open /api/health after deploying."""
+    db_ok = True
+    try:
+        await db.command("ping")
+    except Exception as e:
+        logger.error("MongoDB ping failed: %s", e)
+        db_ok = False
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "database": db_ok,
+        "storage_configured": bool(S3_BUCKET),
+        "public_media_url": bool(S3_PUBLIC_BASE_URL),
+        "time": now_iso(),
+    }
+
+
 app.include_router(api)
-app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
+# CORS: set CORS_ORIGINS to a comma-separated list of your frontend domains.
+# Optionally set CORS_ORIGIN_REGEX (e.g. https://doggies-town-.*\.vercel\.app) for preview deployments.
+_cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
+_cors_origins = ["*"] if _cors_env in ("", "*") else [o.strip() for o in _cors_env.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_origins=_cors_origins,
+    allow_origin_regex=os.environ.get("CORS_ORIGIN_REGEX") or None,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -441,12 +642,69 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    await db.users.create_index("email", unique=True)
-    await auth_mod.seed_admin(db)
-    await seed_content(db)
-    logger.info("Startup complete: admin seeded, content seeded.")
+    # On Vercel this runs on every cold start. Wrapped so a seeding problem
+    # never takes the whole site down.
+    try:
+        await db.users.create_index("email", unique=True)
+        await auth_mod.seed_admin(db)
+        await seed_content(db)
+        logger.info("Startup complete: admin seeded, content seeded.")
+    except Exception as e:
+        logger.error("Startup seeding failed (site will still serve): %s", e)
 
 
 @app.on_event("shutdown")
 async def shutdown():
     client.close()
+
+
+# ----------------------------- one-time migration: local uploads/ -> R2/S3 -----------------------------
+def migrate_local_uploads():
+    """
+    Copies every file in backend/uploads/ to the bucket as uploads/<filename>,
+    so existing /api/uploads/<file> links keep working. Files already in the
+    bucket are skipped, so it is safe to run more than once.
+
+    Run ONCE from a machine that still has the uploads/ folder (your computer or Emergent):
+        python server.py migrate
+    Needs the S3_* variables in backend/.env.
+    """
+    upload_dir = ROOT_DIR / "uploads"
+    if not upload_dir.is_dir():
+        print(f"No uploads folder at {upload_dir}. Nothing to migrate.")
+        return
+
+    s3 = get_s3()
+    files = [p for p in upload_dir.iterdir() if p.is_file()]
+    uploaded = skipped = failed = 0
+    for path in files:
+        key = object_key(path.name)
+        try:
+            s3.head_object(Bucket=S3_BUCKET, Key=key)
+            skipped += 1
+            continue
+        except ClientError:
+            pass
+        ctype = (ALLOWED_EXTENSIONS.get(path.suffix.lower())
+                 or mimetypes.guess_type(path.name)[0]
+                 or "application/octet-stream")
+        try:
+            s3.upload_file(
+                str(path), S3_BUCKET, key,
+                ExtraArgs={"ContentType": ctype, "CacheControl": "public, max-age=31536000, immutable"},
+            )
+            uploaded += 1
+            print(f"uploaded  {path.name}")
+        except Exception as e:
+            failed += 1
+            print(f"FAILED    {path.name}: {e}")
+
+    print(f"\nDone. {uploaded} uploaded, {skipped} already there, {failed} failed (of {len(files)}).")
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "migrate":
+        migrate_local_uploads()
+    else:
+        print("Usage: python server.py migrate   (copies backend/uploads/ to R2/S3)")
