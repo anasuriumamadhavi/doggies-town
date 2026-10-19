@@ -6,10 +6,10 @@ import { Plus } from "lucide-react";
 
 export default function FAQ() {
   const { data } = usePublic("/public/faqs");
-  const faqs = data || [];
+  const faqs = useMemo(() => data || [], [data]);
   const [active, setActive] = useState("All");
   const categories = useMemo(() => ["All", ...Array.from(new Set(faqs.map((f) => f.category).filter(Boolean)))], [faqs]);
-  const filtered = active === "All" ? faqs : faqs.filter((f) => f.category === active);
+  const filtered = useMemo(() => (active === "All" ? faqs : faqs.filter((f) => f.category === active)), [active, faqs]);
 
   return (
     <div>

@@ -6,12 +6,12 @@ import { X } from "lucide-react";
 
 export default function Gallery() {
   const { data } = usePublic("/public/gallery");
-  const items = data || [];
+  const items = useMemo(() => data || [], [data]);
   const [active, setActive] = useState("All");
   const [lightbox, setLightbox] = useState(null);
 
   const categories = useMemo(() => ["All", ...Array.from(new Set(items.map((i) => i.category).filter(Boolean)))], [items]);
-  const filtered = active === "All" ? items : items.filter((i) => i.category === active);
+  const filtered = useMemo(() => (active === "All" ? items : items.filter((i) => i.category === active)), [active, items]);
 
   return (
     <div>
