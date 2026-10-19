@@ -29,9 +29,31 @@ from seed_data import seed_content
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("server")
 
-mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ["DB_NAME"]]
+# ---------------------------------------------------------------------------
+# DATABASE CONNECTION
+# Vercel's MONGO_URL / DB_NAME environment variables are used if they are set.
+# Otherwise the values below are used.
+#
+# Paste YOUR OWN MongoDB Atlas connection string between the quotes on the
+# MONGO_URL_FALLBACK line. Do NOT use the Emergent one
+# (customer-apps.dw2nl2.mongodb.net) because Vercel cannot reach it.
+# Keep this GitHub repo PRIVATE if you paste a password here.
+# ---------------------------------------------------------------------------
+MONGO_URL_FALLBACK = "mongodb+srv://paws-staging-1:da19d1qmp9dc73c5vqeg@customer-apps.dw2nl2.mongodb.net/?retryWrites=true&w=majority&appName=paws-staging-1&maxPoolSize=5"
+DB_NAME_FALLBACK = "paws-staging-1"
+
+mongo_url = os.environ.get("MONGO_URL") or MONGO_URL_FALLBACK
+db_name = os.environ.get("DB_NAME") or DB_NAME_FALLBACK
+
+if "mongodb+srv://paws-staging-1:da19d1qmp9dc73c5vqeg@customer-apps.dw2nl2.mongodb.net/?retryWrites=true&w=majority&appName=paws-staging-1&maxPoolSize=5" in mongo_url:
+    raise RuntimeError("MongoDB URL not set: paste your Atlas URL into MONGO_URL_FALLBACK in server.py, or set MONGO_URL in Vercel.")
+if "customer-apps.dw2nl2.mongodb.net" in mongo_url:
+    logging.getLogger("server").warning(
+        "MONGO_URL points to Emergent's database, which Vercel cannot reach. Use your own Atlas cluster."
+    )
+
+client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=8000)
+db = client[db_name]
 
 # NOTE: no local uploads folder. Vercel's filesystem is read-only, and anything written
 # to /tmp disappears between requests. All media lives in S3-compatible storage (R2/S3).
