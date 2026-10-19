@@ -77,6 +77,26 @@ class EnquiryBody(BaseModel):
     message: Optional[str] = ""
 
 
+# ----------------------------- health -----------------------------
+@api.get("/_health")
+async def _health():
+    info = {
+        "env_present": {
+            "MONGO_URL": "MONGO_URL" in os.environ,
+            "DB_NAME": "DB_NAME" in os.environ,
+        },
+        "mongo_ping": False,
+        "seeded_settings": False,
+    }
+    try:
+        await db.command("ping")
+        info["mongo_ping"] = True
+        info["seeded_settings"] = bool(await db.settings.find_one({"id": "site"}))
+    except Exception as e:
+        info["error"] = str(e)[:400]
+    return info
+
+
 # ----------------------------- auth -----------------------------
 @api.post("/auth/login")
 async def login(body: LoginBody, response: Response, request: Request):
@@ -146,7 +166,7 @@ def register_collection(name: str, coll: str, has_slug: bool = False, order_fiel
         if order_field not in payload:
             payload[order_field] = await db[coll].count_documents({}) + 1
         await db[coll].insert_one(dict(payload))
-        await log_activity(admin["email"], "create", name, f"Created {name[:-1] if name.endswith('s') else name}: {payload.get('name') or payload.get('question') or payload.get('label') or payload.get('id')}")
+        await log_activity(admin["email"], "create", name, f"Created {name[:-1] if name.endswith('s') else name}: {payload.get('name') or payload.get('question') or payload.get('label') or payload.get('title')}")
         return clean(payload)
 
     @api.put(f"/admin/{name}/{{item_id}}")
