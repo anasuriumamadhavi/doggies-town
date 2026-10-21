@@ -39,20 +39,25 @@ logger = logging.getLogger("server")
 # (customer-apps.dw2nl2.mongodb.net) because Vercel cannot reach it.
 # Keep this GitHub repo PRIVATE if you paste a password here.
 # ---------------------------------------------------------------------------
-MONGO_URL_FALLBACK = "mongodb+srv://paws-staging-1:da19d1qmp9dc73c5vqeg@customer-apps.dw2nl2.mongodb.net/?retryWrites=true&w=majority&appName=paws-staging-1&maxPoolSize=5"
+MONGO_URL_FALLBACK = "PASTE_YOUR_ATLAS_MONGODB_URL_HERE"
 DB_NAME_FALLBACK = "paws-staging-1"
 
 mongo_url = os.environ.get("MONGO_URL") or MONGO_URL_FALLBACK
 db_name = os.environ.get("DB_NAME") or DB_NAME_FALLBACK
 
-if "mongodb+srv://paws-staging-1:da19d1qmp9dc73c5vqeg@customer-apps.dw2nl2.mongodb.net/?retryWrites=true&w=majority&appName=paws-staging-1&maxPoolSize=5" in mongo_url:
-    raise RuntimeError("MongoDB URL not set: paste your Atlas URL into MONGO_URL_FALLBACK in server.py, or set MONGO_URL in Vercel.")
+if "PASTE_YOUR" in mongo_url:
+    raise RuntimeError("MongoDB URL not set: set MONGO_URL in Vercel, or paste your Atlas URL into MONGO_URL_FALLBACK in server.py.")
 if "customer-apps.dw2nl2.mongodb.net" in mongo_url:
-    logging.getLogger("server").warning(
-        "MONGO_URL points to Emergent's database, which Vercel cannot reach. Use your own Atlas cluster."
-    )
+    raise RuntimeError("MONGO_URL points to Emergent's database, which Vercel cannot reach. Use your own Atlas cluster.")
 
-client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=8000)
+import certifi  # trusted CA bundle, so the TLS handshake with Atlas works on Vercel
+
+client = AsyncIOMotorClient(
+    mongo_url,
+    serverSelectionTimeoutMS=8000,
+    tls=True,
+    tlsCAFile=certifi.where(),
+)
 db = client[db_name]
 
 # Vercel's filesystem is read-only. Never create a project-local upload directory;
