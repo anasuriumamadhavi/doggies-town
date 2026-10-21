@@ -55,8 +55,17 @@ if "customer-apps.dw2nl2.mongodb.net" in mongo_url:
 client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=8000)
 db = client[db_name]
 
-# NOTE: no local uploads folder. Vercel's filesystem is read-only, and anything written
-# to /tmp disappears between requests. All media lives in S3-compatible storage (R2/S3).
+# Vercel's filesystem is read-only. Never create a project-local upload directory;
+# the app stores permanent media in S3/R2 instead. /tmp is reserved for short-lived
+# transient files only, not for persisted user uploads or URLs.
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR") or "/tmp/doggies-town")
+if "/var/task" in str(UPLOAD_DIR) or str(UPLOAD_DIR).startswith(str(ROOT_DIR)):
+    logger.warning(
+        "UPLOAD_DIR points at the project filesystem; switching to /tmp for transient files only. "
+        "Permanent media remains in object storage."
+    )
+    UPLOAD_DIR = Path("/tmp/doggies-town")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Pawsome Pet Care API")
 api = APIRouter(prefix="/api")
@@ -292,7 +301,7 @@ def register_collection(name: str, coll: str, has_slug: bool = False, order_fiel
         if order_field not in payload:
             payload[order_field] = await db[coll].count_documents({}) + 1
         await db[coll].insert_one(dict(payload))
-        await log_activity(admin["email"], "create", name, f"Created {name[:-1] if name.endswith('s') else name}: {payload.get('name') or payload.get('question') or payload.get('label') or payload.get('id')}")
+        await log_activity(admin["email"], "create", name, f"Created {name[:-1] if name.endswith('s') else name}: {payload.get('name') or payload.get('question') or payload.get('label') or payload.get('title') or 'item'}")
         return clean(payload)
 
     @api.put(f"/admin/{name}/{{item_id}}")
