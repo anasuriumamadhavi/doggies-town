@@ -39,7 +39,7 @@ logger = logging.getLogger("server")
 # (customer-apps.dw2nl2.mongodb.net) because Vercel cannot reach it.
 # Keep this GitHub repo PRIVATE if you paste a password here.
 # ---------------------------------------------------------------------------
-MONGO_URL_FALLBACK = "PASTE_YOUR_ATLAS_MONGODB_URL_HERE"
+MONGO_URL_FALLBACK = "mongodb+srv://anasuriumamadhavi_db_user:<anasuriumamadhavi_db_user>@cluster0.bw547yn.mongodb.net/"
 DB_NAME_FALLBACK = "paws-staging-1"
 
 mongo_url = os.environ.get("MONGO_URL") or MONGO_URL_FALLBACK
