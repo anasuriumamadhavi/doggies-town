@@ -45,7 +45,7 @@ DB_NAME_FALLBACK = "paws-staging-1"
 mongo_url = os.environ.get("MONGO_URL") or MONGO_URL_FALLBACK
 db_name = os.environ.get("DB_NAME") or DB_NAME_FALLBACK
 
-if "PASTE_YOUR" in mongo_url:
+if "mongodb+srv://anasuriumamadhavi_db_user:<anasuriumamadhavi_db_user>@cluster0.bw547yn.mongodb.net/" in mongo_url:
     raise RuntimeError("MongoDB URL not set: set MONGO_URL in Vercel, or paste your Atlas URL into MONGO_URL_FALLBACK in server.py.")
 if "customer-apps.dw2nl2.mongodb.net" in mongo_url:
     raise RuntimeError("MONGO_URL points to Emergent's database, which Vercel cannot reach. Use your own Atlas cluster.")
